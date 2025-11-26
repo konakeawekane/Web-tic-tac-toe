@@ -118,24 +118,23 @@
         // --- GLOBAL STATE & FIREBASE SETUP ---
         
         // ***********************************************************************************
-        // --- IMPORTANT: CONFIGURATION FOR PUBLIC DEPLOYMENT (e.g., GitHub Pages) ---
-        // You MUST replace the placeholder values below with your actual Firebase Web App config.
-        const PUBLIC_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyCuCPe7tA85XqXP_ilthtw9So7Ciolbosk",
-            authDomain: "web-tic-tac-toe-fdcfb.firebaseapp.com",
-            projectId: "web-tic-tac-toe-fdcfb",
-            storageBucket: "web-tic-tac-toe-fdcfb.firebasestorage.app",
-            messagingSenderId: "521873524774",
-            appId: "1:521873524774:web:11b3855395a1d7edeefee7",
-            measurementId: "G-B72N76EZPN"
+        // --- IMPORTANT: CONFIGURATION FOR PUBLIC DEPLOYMENT (GitHub Actions Target) ---
+        // GitHub Actions will replace these placeholder strings with your actual secrets.
+        const PLACEHOLDER_FIREBASE_CONFIG = {
+            apiKey: "__SECRET_API_KEY__", 
+            authDomain: "__SECRET_AUTH_DOMAIN__", 
+            projectId: "__SECRET_PROJECT_ID__", 
+            storageBucket: "__SECRET_STORAGE_BUCKET__",
+            messagingSenderId: "__SECRET_SENDER_ID__",
+            appId: "__SECRET_APP_ID__"
         };
         // ***********************************************************************************
 
         // Check if environment configuration is present (i.e., running in the sandbox)
         const hasEnvironmentConfig = typeof __firebase_config !== 'undefined' && Object.keys(JSON.parse(__firebase_config)).length > 0;
         
-        // Use environment config if present, otherwise fall back to the public config
-        const firebaseConfig = hasEnvironmentConfig ? JSON.parse(__firebase_config) : PUBLIC_FIREBASE_CONFIG;
+        // Use environment config if present, otherwise fall back to the placeholder config
+        const firebaseConfig = hasEnvironmentConfig ? JSON.parse(__firebase_config) : PLACEHOLDER_FIREBASE_CONFIG;
 
         // Use environment App ID if present, otherwise use a stable ID for public deployment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'github-pages-tictactoe';
@@ -331,9 +330,9 @@
                 styleClasses = isMyTurn ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700';
                 
                 // Highlight the player whose turn it is
-                if (gameData.currentPlayer === 'X' && (gameData.playerXId || !gameData.playerOId)) { // X turn and X is connected or O not connected yet
+                if (gameData.currentPlayer === 'X' && (gameData.playerXId || !gameData.playerOId)) { 
                      playerXCard.classList.add('border-4', 'border-green-500', 'shadow-2xl');
-                } else if (gameData.currentPlayer === 'O' && gameData.playerOId) { // O turn and O is connected
+                } else if (gameData.currentPlayer === 'O' && gameData.playerOId) { 
                      playerOCard.classList.add('border-4', 'border-green-500', 'shadow-2xl');
                 }
 
@@ -393,8 +392,9 @@
 
         async function initializeAndAuthenticate() {
             try {
-                if (!firebaseConfig.projectId || firebaseConfig.projectId === "YOUR_PROJECT_ID") {
-                    showMessage("Configuration Required", "Please replace the PUBLIC_FIREBASE_CONFIG placeholders in the code with your actual Firebase project configuration before deploying.");
+                // If running on GitHub Pages, the placeholders should be replaced
+                if (firebaseConfig.projectId === "__SECRET_PROJECT_ID__") {
+                    showMessage("Configuration Error", "Firebase configuration placeholders were not replaced. The GitHub Action likely failed or has not run yet. Check your repository Secrets.");
                     return;
                 }
 
@@ -411,14 +411,13 @@
                         userInfoEl.textContent = `Your User ID: ${currentUserId.substring(0, 8)}... (Full ID: ${currentUserId}).`;
                         isAuthReady = true;
                     } else {
-                        // This should ideally not happen after initial sign-in
                         userInfoEl.textContent = "Authenticating...";
                         currentUserId = null;
                         isAuthReady = false;
                     }
                 });
 
-                // The environment token is for the sandbox. For public deployment, we use anonymous sign-in.
+                // Sign in using custom token (sandbox) or anonymously (GitHub Pages)
                 if (token && hasEnvironmentConfig) {
                     await signInWithCustomToken(auth, token);
                 } else {
@@ -438,6 +437,10 @@
                  showMessage("Wait", "Please wait for authentication to complete before starting a game.");
                  return;
             }
+            if (firebaseConfig.projectId === "__SECRET_PROJECT_ID__") {
+                showMessage("Configuration Error", "Game cannot start. Firebase configuration missing.");
+                return;
+            }
 
             try {
                 const collectionPath = `artifacts/${appId}/public/data/tictactoe`;
@@ -450,7 +453,6 @@
                 });
 
                 playerSymbol = 'X';
-                // Use execCommand('copy') for better compatibility in iframe/sandboxes
                 const gameIdMessage = `Share this ID with a friend to join: ${newGameId}`;
                 const tempInput = document.createElement('input');
                 tempInput.value = newGameId;
@@ -472,6 +474,10 @@
             if (!isAuthReady) {
                  showMessage("Wait", "Please wait for authentication to complete before joining a game.");
                  return;
+            }
+            if (firebaseConfig.projectId === "__SECRET_PROJECT_ID__") {
+                showMessage("Configuration Error", "Game cannot join. Firebase configuration missing.");
+                return;
             }
 
             const gameId = joinGameInput.value.trim();
