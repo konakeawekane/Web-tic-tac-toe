@@ -116,8 +116,29 @@
         setLogLevel('debug');
 
         // --- GLOBAL STATE & FIREBASE SETUP ---
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // ***********************************************************************************
+        // --- IMPORTANT: CONFIGURATION FOR PUBLIC DEPLOYMENT (e.g., GitHub Pages) ---
+        // You MUST replace the placeholder values below with your actual Firebase Web App config.
+        const PUBLIC_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCuCPe7tA85XqXP_ilthtw9So7Ciolbosk",
+            authDomain: "web-tic-tac-toe-fdcfb.firebaseapp.com",
+            projectId: "web-tic-tac-toe-fdcfb",
+            storageBucket: "web-tic-tac-toe-fdcfb.firebasestorage.app",
+            messagingSenderId: "521873524774",
+            appId: "1:521873524774:web:11b3855395a1d7edeefee7",
+            measurementId: "G-B72N76EZPN"
+        };
+        // ***********************************************************************************
+
+        // Check if environment configuration is present (i.e., running in the sandbox)
+        const hasEnvironmentConfig = typeof __firebase_config !== 'undefined' && Object.keys(JSON.parse(__firebase_config)).length > 0;
+        
+        // Use environment config if present, otherwise fall back to the public config
+        const firebaseConfig = hasEnvironmentConfig ? JSON.parse(__firebase_config) : PUBLIC_FIREBASE_CONFIG;
+
+        // Use environment App ID if present, otherwise use a stable ID for public deployment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'github-pages-tictactoe';
 
         let app;
         let db;
@@ -162,6 +183,7 @@
         }
 
         function getGameDocRef(gameId) {
+            // Note: The public path is based on the hardcoded appId when running externally
             const collectionPath = `artifacts/${appId}/public/data/tictactoe`;
             return doc(db, collectionPath, gameId);
         }
@@ -286,6 +308,8 @@
             let gameFinished = false;
 
             // Highlight current player
+            playerXCard.classList.remove('border-4', 'border-green-500', 'shadow-2xl');
+            playerOCard.classList.remove('border-4', 'border-green-500', 'shadow-2xl');
             playerXCard.classList.remove('border-blue-500', 'border-red-500', 'shadow-lg');
             playerOCard.classList.remove('border-blue-500', 'border-red-500', 'shadow-lg');
             
@@ -307,9 +331,9 @@
                 styleClasses = isMyTurn ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700';
                 
                 // Highlight the player whose turn it is
-                if (gameData.currentPlayer === 'X') {
+                if (gameData.currentPlayer === 'X' && (gameData.playerXId || !gameData.playerOId)) { // X turn and X is connected or O not connected yet
                      playerXCard.classList.add('border-4', 'border-green-500', 'shadow-2xl');
-                } else {
+                } else if (gameData.currentPlayer === 'O' && gameData.playerOId) { // O turn and O is connected
                      playerOCard.classList.add('border-4', 'border-green-500', 'shadow-2xl');
                 }
 
@@ -369,8 +393,8 @@
 
         async function initializeAndAuthenticate() {
             try {
-                if (Object.keys(firebaseConfig).length === 0) {
-                    showMessage("Configuration Error", "Firebase configuration is missing. Cannot run the multiplayer application.");
+                if (!firebaseConfig.projectId || firebaseConfig.projectId === "YOUR_PROJECT_ID") {
+                    showMessage("Configuration Required", "Please replace the PUBLIC_FIREBASE_CONFIG placeholders in the code with your actual Firebase project configuration before deploying.");
                     return;
                 }
 
@@ -394,8 +418,8 @@
                     }
                 });
 
-                // Sign in using custom token or anonymously
-                if (token) {
+                // The environment token is for the sandbox. For public deployment, we use anonymous sign-in.
+                if (token && hasEnvironmentConfig) {
                     await signInWithCustomToken(auth, token);
                 } else {
                     await signInAnonymously(auth);
@@ -426,7 +450,16 @@
                 });
 
                 playerSymbol = 'X';
-                showMessage("Game Created!", `Share this ID with a friend to join: ${newGameId}`);
+                // Use execCommand('copy') for better compatibility in iframe/sandboxes
+                const gameIdMessage = `Share this ID with a friend to join: ${newGameId}`;
+                const tempInput = document.createElement('input');
+                tempInput.value = newGameId;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+
+                showMessage("Game Created! (ID Copied)", `${gameIdMessage}. The ID has been copied to your clipboard.`);
                 startListening(newGameId);
 
             } catch (error) {
