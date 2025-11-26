@@ -1,17 +1,14 @@
-# This workflow runs when changes are pushed to the 'main' branch.
-# It uses the repository secrets to securely inject Firebase keys into index.html
-# and then deploys the resulting file to GitHub Pages.
+# This is the simplified and robust workflow for deploying a single HTML file 
+# to GitHub Pages securely via GitHub Actions.
 
-name: Deploy Game to GitHub Pages
+name: Deploy Game Securely
 
 on:
   push:
     branches:
       - main
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions needed for GitHub Pages deployment
 permissions:
   contents: write
   pages: write
@@ -20,39 +17,52 @@ permissions:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    
+    # Define the deployment environment (required for deploy-pages@v4)
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Inject Firebase Secrets into index.html
+      # STEP 1: Inject Firebase Secrets into index.html using 'sed'
+      # The key change is wrapping the secret variable with quotes (e.g., \"${{ secrets.SECRET_NAME }}\") 
+      # to ensure the final output is a valid JavaScript string literal.
+      - name: Securely Inject Firebase Secrets
         run: |
-          # Read the contents of the index.html file
-          HTML_CONTENT=$(cat index.html)
-
-          # Perform the search and replace operations using the secrets
-          # We use single quotes around the values to ensure no shell expansion occurs
-          HTML_CONTENT="${HTML_CONTENT/\"__SECRET_API_KEY__\"/\"${{ secrets.FIREBASE_API_KEY }}\"}"
-          HTML_CONTENT="${HTML_CONTENT/\"__SECRET_AUTH_DOMAIN__\"/\"${{ secrets.FIREBASE_AUTH_DOMAIN }}\"}"
-          HTML_CONTENT="${HTML_CONTENT/\"__SECRET_PROJECT_ID__\"/\"${{ secrets.FIREBASE_PROJECT_ID }}\"}"
-          HTML_CONTENT="${HTML_CONTENT/\"__SECRET_STORAGE_BUCKET__\"/\"${{ secrets.FIREBASE_STORAGE_BUCKET }}\"}"
-          HTML_CONTENT="${HTML_CONTENT/\"__SECRET_SENDER_ID__\"/\"${{ secrets.FIREBASE_SENDER_ID }}\"}"
-          HTML_CONTENT="${HTML_CONTENT/\"__SECRET_APP_ID__\"/\"${{ secrets.FIREBASE_APP_ID }}\"}"
-
-          # Overwrite the index.html file with the content that now contains the keys
-          echo "$HTML_CONTENT" > index.html
+          # Use 'sed' for reliable string replacement. 
+          
+          # 1. API KEY (Injection now includes quotes)
+          sed -i "s|__SECRET_API_KEY__|\"${{ secrets.FIREBASE_API_KEY }}\"|g" index.html
+          
+          # 2. AUTH DOMAIN
+          sed -i "s|__SECRET_AUTH_DOMAIN__|\"${{ secrets.FIREBASE_AUTH_DOMAIN }}\"|g" index.html
+          
+          # 3. PROJECT ID
+          sed -i "s|__SECRET_PROJECT_ID__|\"${{ secrets.FIREBASE_PROJECT_ID }}\"|g" index.html
+          
+          # 4. STORAGE BUCKET
+          sed -i "s|__SECRET_STORAGE_BUCKET__|\"${{ secrets.FIREBASE_STORAGE_BUCKET }}\"|g" index.html
+          
+          # 5. SENDER ID
+          sed -i "s|__SECRET_SENDER_ID__|\"${{ secrets.FIREBASE_SENDER_ID }}\"|g" index.html
+          
+          # 6. APP ID
+          sed -i "s|__SECRET_APP_ID__|\"${{ secrets.FIREBASE_APP_ID }}\"|g" index.html
+          
+          echo "Secrets successfully injected into index.html."
         shell: bash
       
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-        with:
-          static_site_generator: custom
-
-      - name: Upload artifact
+      # STEP 2: Upload the processed files as an artifact
+      - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload the root directory containing index.html
+          # Upload the root directory containing the key-injected index.html
           path: '.'
 
+      # STEP 3: Deploy the artifact to GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
