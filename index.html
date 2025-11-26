@@ -396,7 +396,7 @@
                 if (firebaseConfig.projectId === "__SECRET_PROJECT_ID__") {
                     showMessage("Configuration Error", "Firebase configuration placeholders were not replaced. The GitHub Action likely failed or has not run yet. Check your repository Secrets.");
                     return;
-                }
+                };
 
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
