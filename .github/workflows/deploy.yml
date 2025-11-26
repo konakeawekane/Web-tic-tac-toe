@@ -1,5 +1,5 @@
-# This workflow uses the most robust shell quoting to ensure Firebase secrets 
-# are injected as perfect JavaScript string literals, eliminating SyntaxErrors.
+# This workflow maps secrets to environment variables to safely inject them
+# into the HTML, fixing the "Unrecognized named-value" error.
 
 name: Deploy Game Securely
 
@@ -18,7 +18,6 @@ jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     
-    # Define the deployment environment (required for deploy-pages@v4)
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -27,30 +26,29 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # STEP 1: Inject Firebase Secrets into index.html using 'sed'
-      # The key change is the complex, robust quoting: '"'"${{ secrets.SECRET_NAME }}"'"'
-      # This ensures the injected value is wrapped in literal double-quotes.
+      # STEP 1: Inject Firebase Secrets into index.html
+      # We map secrets to environment variables first. This allows the shell 
+      # script to access them safely without complex interpolation logic.
       - name: Securely Inject Firebase Secrets
+        env:
+          # Map GitHub Secrets to Shell Environment Variables
+          API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          SENDER_ID: ${{ secrets.FIREBASE_SENDER_ID }}
+          APP_ID: ${{ secrets.FIREBASE_APP_ID }}
         run: |
-          # The complex quoting pattern forces the secret value to be a quoted string.
+          # Use sed to replace the placeholders with the environment variables.
+          # We explicitly wrap the variable in escaped double quotes (\") to create
+          # a valid JavaScript string (e.g., apiKey: "AIzaSy...").
           
-          # Helper function for robust sed replacement
-          # Usage: replace_secret SECRET_NAME PLACEHHOLDER_KEY
-          replace_secret() {
-            local secret_name=$1
-            local placeholder_key=$2
-            # The pattern 's|OLD|'"$NEW"'|g' is the most robust way to inject variables 
-            # as literal strings within double quotes in a shell environment.
-            sed -i -e "s|${placeholder_key}|'\"'\"${{ secrets[secret_name] }}\"'\"'\"|g" index.html
-          }
-          
-          # Run replacements for all six keys
-          replace_secret FIREBASE_API_KEY __SECRET_API_KEY__
-          replace_secret FIREBASE_AUTH_DOMAIN __SECRET_AUTH_DOMAIN__
-          replace_secret FIREBASE_PROJECT_ID __SECRET_PROJECT_ID__
-          replace_secret FIREBASE_STORAGE_BUCKET __SECRET_STORAGE_BUCKET__
-          replace_secret FIREBASE_SENDER_ID __SECRET_SENDER_ID__
-          replace_secret FIREBASE_APP_ID __SECRET_APP_ID__
+          sed -i "s|__SECRET_API_KEY__|\"$API_KEY\"|g" index.html
+          sed -i "s|__SECRET_AUTH_DOMAIN__|\"$AUTH_DOMAIN\"|g" index.html
+          sed -i "s|__SECRET_PROJECT_ID__|\"$PROJECT_ID\"|g" index.html
+          sed -i "s|__SECRET_STORAGE_BUCKET__|\"$STORAGE_BUCKET\"|g" index.html
+          sed -i "s|__SECRET_SENDER_ID__|\"$SENDER_ID\"|g" index.html
+          sed -i "s|__SECRET_APP_ID__|\"$APP_ID\"|g" index.html
           
           echo "Secrets successfully injected into index.html."
         shell: bash
